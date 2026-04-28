@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable react-hooks/set-state-in-effect */
 import { useState, useEffect } from "react"
@@ -9,40 +10,30 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { API_URL } from "@/api/config"
 import type { BookNoteResponse, UserBookResponse } from "@/types/api"
+import axiosInstance from "@/api/axiosInstance"
 
 export default function Dashboard() {
     const navigate = useNavigate()
     const token = localStorage.getItem("access_token")
 
-    // State Fetch Buku Baru
     const [isbn, setIsbn] = useState("")
     const [loadingFetch, setLoadingFetch] = useState(false)
-
-    // State Rak Buku
     const [myLibrary, setMyLibrary] = useState<UserBookResponse[]>([])
     const [loadingLibrary, setLoadingLibrary] = useState(true)
 
-    // ==========================================
-    // STATE UNTUK DIALOG UPDATE PROGRESS
-    // ==========================================
     const [isDialogOpen, setIsDialogOpen] = useState(false)
     const [editBookId, setEditBookId] = useState("")
     const [editStatus, setEditStatus] = useState("UNREAD")
     const [editPage, setEditPage] = useState<number>(0)
     const [editRating, setEditRating] = useState<number>(0)
 
-    // ==========================================
-    // STATE UNTUK DIALOG NOTES
-    // ==========================================
     const [isNoteDialogOpen, setIsNoteDialogOpen] = useState(false)
-    const [activeUserBookId, setActiveUserBookId] = useState("") // Menyimpan ID Relasi (user_book_id)
+    const [activeUserBookId, setActiveUserBookId] = useState("")
     const [activeBookTitle, setActiveBookTitle] = useState("")
     const [notes, setNotes] = useState<BookNoteResponse[]>([])
     const [loadingNotes, setLoadingNotes] = useState(false)
 
-    // State Form Note Baru
     const [newQuote, setNewQuote] = useState("")
     const [newPageRef, setNewPageRef] = useState<number>(0)
     const [newTags, setNewTags] = useState("")
@@ -51,17 +42,13 @@ export default function Dashboard() {
         if (!token) navigate("/auth")
     }, [token, navigate])
 
-    // Fungsi Fetch Rak Buku
+    // 1. GET LIBRARY
     const fetchMyLibrary = async () => {
         try {
-            const response = await fetch(`${API_URL}/api/library/`, {
-                headers: { "Authorization": `Bearer ${token}` }
-            })
-            if (!response.ok) throw new Error("Gagal mengambil rak buku")
-            const result = await response.json()
-            setMyLibrary(result.data || [])
-        } catch (err) {
-            console.error(err)
+            const response = await axiosInstance.get('/api/library/')
+            setMyLibrary(response.data.data || [])
+        } catch (err: any) {
+            console.error("Gagal load library")
         } finally {
             setLoadingLibrary(false)
         }
@@ -69,115 +56,81 @@ export default function Dashboard() {
 
     useEffect(() => {
         if (token) fetchMyLibrary()
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [token])
 
-    // Fungsi Tarik Buku Baru
+    // 2. FETCH BOOK API
     const handleFetchBookAPI = async () => {
         if (!isbn) return toast.error("ISBN tidak boleh kosong")
         setLoadingFetch(true)
         try {
-            const response = await fetch(`${API_URL}/api/books/fetch`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
-                body: JSON.stringify({ isbn })
-            })
-            const result = await response.json()
-            if (!response.ok) throw new Error(result.error)
-
+            await axiosInstance.post('/api/books/fetch', { isbn })
             toast.success(`Buku berhasil ditarik ke database!`)
             setIsbn("")
         } catch (err: any) {
-            toast.error(err.message)
+            toast.error(err.response?.data?.error || err.message)
         } finally {
             setLoadingFetch(false)
         }
     }
 
-    // Fungsi Membuka Modal Progress
+    // 3. UPDATE PROGRESS
     const openEditDialog = (item: UserBookResponse) => {
-        setEditBookId(item.book_id) // Asumsi PUT /api/library/:book_id menggunakan book_id
+        setEditBookId(item.book_id)
         setEditStatus(item.status)
         setEditPage(item.current_page)
         setEditRating(item.rating)
         setIsDialogOpen(true)
     }
 
-    // Fungsi Simpan Progress
     const handleSaveProgress = async () => {
         try {
-            const response = await fetch(`${API_URL}/api/library/${editBookId}`, {
-                method: "PUT",
-                headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
-                body: JSON.stringify({
-                    status: editStatus,
-                    current_page: editPage,
-                    rating: editRating
-                })
+            await axiosInstance.put(`/api/library/${editBookId}`, {
+                status: editStatus,
+                current_page: editPage,
+                rating: editRating
             })
-
-            const result = await response.json()
-            if (!response.ok) throw new Error(result.error)
-
             toast.success("Progress bacaan berhasil di-update!")
             setIsDialogOpen(false)
             fetchMyLibrary()
         } catch (err: any) {
-            toast.error(err.message)
+            toast.error(err.response?.data?.error || err.message)
         }
     }
 
-    // Fungsi Membuka Modal Notes (MENGGUNAKAN user_book_id)
+    // 4. FETCH NOTES
     const openNoteDialog = async (userBookId: string, bookTitle: string) => {
         setActiveUserBookId(userBookId)
         setActiveBookTitle(bookTitle)
         setIsNoteDialogOpen(true)
         setLoadingNotes(true)
-
         try {
-            const response = await fetch(`${API_URL}/api/library/${userBookId}/notes`, {
-                headers: { "Authorization": `Bearer ${token}` }
-            })
-            if (!response.ok) throw new Error("Gagal memuat catatan")
-            const result = await response.json()
-            setNotes(result.data || [])
+            const response = await axiosInstance.get(`/api/library/${userBookId}/notes`)
+            setNotes(response.data.data || [])
         } catch (err: any) {
-            toast.error(err.message)
+            toast.error(err.response?.data?.error || "Gagal memuat catatan")
         } finally {
             setLoadingNotes(false)
         }
     }
 
-    // Fungsi Simpan Note Baru
+    // 5. POST NOTE
     const handleAddNote = async () => {
         if (!newQuote) return toast.error("Kutipan catatan tidak boleh kosong")
-
         const tagsArray = newTags.split(",").map(tag => tag.trim()).filter(tag => tag !== "")
 
         try {
-            const response = await fetch(`${API_URL}/api/library/${activeUserBookId}/notes`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
-                body: JSON.stringify({
-                    quote: newQuote,
-                    page_reference: newPageRef,
-                    tags: tagsArray
-                })
+            await axiosInstance.post(`/api/library/${activeUserBookId}/notes`, {
+                quote: newQuote,
+                page_reference: newPageRef,
+                tags: tagsArray
             })
-
-            const result = await response.json()
-            if (!response.ok) throw new Error(result.error)
-
             toast.success("Catatan berhasil disimpan!")
-
             setNewQuote("")
             setNewPageRef(0)
             setNewTags("")
-
-            // Refresh daftar catatan
             openNoteDialog(activeUserBookId, activeBookTitle)
         } catch (err: any) {
-            toast.error(err.message)
+            toast.error(err.response?.data?.error || err.message)
         }
     }
 

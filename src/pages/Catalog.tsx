@@ -1,27 +1,25 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useEffect, useState } from "react"
+import { toast } from "sonner"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { API_URL } from "@/api/config"
+import axiosInstance from "@/api/axiosInstance" // Import Axios Instance
 import type { Book, PaginatedResponse } from "@/types/api"
-import { toast } from "sonner"
 
 export default function Catalog() {
     const [books, setBooks] = useState<Book[]>([])
     const [loading, setLoading] = useState(true)
 
-    // Cek apakah user sedang login
     const token = localStorage.getItem("access_token")
 
     useEffect(() => {
         const fetchBooks = async () => {
             try {
-                const response = await fetch(`${API_URL}/api/books`)
-                if (!response.ok) throw new Error("Gagal mengambil data")
-                const result: PaginatedResponse<Book> = await response.json()
-                setBooks(result.data || [])
-            } catch (err) {
-                console.error(err)
+                // AXIOS: URL lebih singkat, tidak perlu manual .json()
+                const response = await axiosInstance.get<PaginatedResponse<Book>>('/api/books')
+                setBooks(response.data.data || [])
+            } catch (err: any) {
+                console.error("Gagal load buku:", err.message)
             } finally {
                 setLoading(false)
             }
@@ -29,31 +27,17 @@ export default function Catalog() {
         fetchBooks()
     }, [])
 
-    // Fungsi POST ke /api/library/
     const handleAddToLibrary = async (bookId: string) => {
-        if (!token) {
-            toast.error("Silakan login terlebih dahulu!") // Pengganti alert
-            return
-        }
+        if (!token) return toast.error("Silakan login terlebih dahulu!")
 
         try {
-            const response = await fetch(`${API_URL}/api/library/`, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "Authorization": `Bearer ${token}`
-                },
-                body: JSON.stringify({ book_id: bookId })
-            })
-            const result = await response.json()
-
-            if (!response.ok) throw new Error(result.error)
-
-            // Pengganti alert sukses
+            // AXIOS: Tidak perlu lagi menulis Header Authorization! Satpam yang urus.
+            await axiosInstance.post('/api/library/', { book_id: bookId })
             toast.success("Buku berhasil ditambahkan ke rak!")
         } catch (err: any) {
-            // Pengganti alert error
-            toast.error(err.message)
+            // AXIOS Error Handling: Ambil pesan error asli dari Golang-mu
+            const errorMessage = err.response?.data?.error || err.message
+            toast.error(errorMessage)
         }
     }
 
@@ -80,7 +64,6 @@ export default function Catalog() {
                             <p className="text-xs text-slate-500 mt-2">ISBN: {book.isbn || "N/A"}</p>
                         </CardContent>
 
-                        {/* Tampilkan tombol HANYA jika sudah login */}
                         {token && (
                             <CardFooter className="p-4 pt-0">
                                 <Button variant="secondary" className="w-full" onClick={() => handleAddToLibrary(book.id)}>
