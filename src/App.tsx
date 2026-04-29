@@ -4,6 +4,8 @@ import Auth from "@/pages/Auth"
 import Dashboard from "@/pages/Dashboard"
 import Navbar from "./components/shared/navbar"
 import { Toaster } from "@/components/ui/sonner"
+import BookDetail from "./pages/BookDetail"
+import LibraryBookDetail from "./pages/LibraryBookDetail"
 
 function App() {
   return (
@@ -20,6 +22,8 @@ function App() {
             <Route path="/dashboard" element={<Dashboard />} />
             {/* Jika ada yang iseng ngetik URL ngawur, arahkan ke Katalog */}
             <Route path="*" element={<Navigate to="/" replace />} />
+            <Route path="/book/:id" element={<BookDetail />} />
+            <Route path="/library/:bookId" element={<LibraryBookDetail />} />
           </Routes>
         </main>
         <Toaster richColors position="top-center" />

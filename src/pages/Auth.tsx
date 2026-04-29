@@ -1,13 +1,14 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState } from "react"
 import { useNavigate } from "react-router-dom"
+import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import axiosInstance from "@/api/axiosInstance"
 import type { TokenResponse } from "@/types/api"
-import { API_URL } from "@/api/config"
 
 export default function Auth() {
     const navigate = useNavigate()
@@ -15,32 +16,29 @@ export default function Auth() {
     const [password, setPassword] = useState("")
     const [name, setName] = useState("")
     const [loading, setLoading] = useState(false)
-    const [message, setMessage] = useState<{ text: string, type: 'error' | 'success' } | null>(null)
 
     const handleAuth = async (action: 'login' | 'register') => {
         setLoading(true)
-        setMessage(null)
         try {
             const endpoint = action === 'login' ? '/api/auth/login' : '/api/auth/register'
             const payload = action === 'login' ? { email, password } : { name, email, password }
 
-            const response = await fetch(`${API_URL}${endpoint}`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(payload)
-            })
-            const result = await response.json()
-            if (!response.ok) throw new Error(result.error || `Gagal ${action}`)
+            // AXIOS: Sangat singkat!
+            const response = await axiosInstance.post(endpoint, payload)
 
             if (action === 'login') {
-                const tokenData = result.data as TokenResponse
+                const tokenData = response.data.data as TokenResponse
                 localStorage.setItem("access_token", tokenData.access_token)
-                navigate("/dashboard") // Jika sukses, lempar ke dashboard
+                localStorage.setItem("refresh_token", tokenData.refresh_token) // Simpan juga refresh token-nya
+
+                toast.success("Berhasil Login!")
+                navigate("/dashboard")
             } else {
-                setMessage({ text: "Registrasi berhasil! Silakan login.", type: 'success' })
+                toast.success("Registrasi berhasil! Silakan login.")
             }
         } catch (err: any) {
-            setMessage({ text: err.message, type: 'error' })
+            const errorMessage = err.response?.data?.error || err.message
+            toast.error(errorMessage)
         } finally {
             setLoading(false)
         }
@@ -48,17 +46,13 @@ export default function Auth() {
 
     return (
         <div className="flex items-center justify-center p-8">
-            <Card className="w-100">
+            {/* ... (Isi HTML/UI Form tidak ada yang berubah, tetap sama seperti sebelumnya) ... */}
+            <Card className="w-[400px]">
                 <CardHeader>
                     <CardTitle>OmniLibrary Masuk</CardTitle>
                     <CardDescription>Silakan login atau buat akun baru.</CardDescription>
                 </CardHeader>
                 <CardContent>
-                    {message && (
-                        <div className={`p-3 mb-4 text-sm rounded-md ${message.type === 'error' ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
-                            {message.text}
-                        </div>
-                    )}
                     <Tabs defaultValue="login" className="w-full">
                         <TabsList className="grid w-full grid-cols-2 mb-4">
                             <TabsTrigger value="login">Login</TabsTrigger>
