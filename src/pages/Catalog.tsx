@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Button } from "@/components/ui/button"
 import axiosInstance from "@/api/axiosInstance" // Import Axios Instance
 import type { Book, PaginatedResponse } from "@/types/api"
+import { Link } from "react-router-dom"
 
 export default function Catalog() {
     const [books, setBooks] = useState<Book[]>([])
@@ -49,17 +50,20 @@ export default function Catalog() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 {books.map((book) => (
                     <Card key={book.id} className="flex flex-col overflow-hidden hover:shadow-lg transition-shadow">
-                        <div className="h-48 bg-slate-200 w-full shrink-0">
-                            {book.cover_url ? (
-                                <img src={book.cover_url} alt={book.title} className="w-full h-full object-cover" />
-                            ) : (
-                                <div className="flex items-center justify-center h-full text-slate-400">No Cover</div>
-                            )}
-                        </div>
-                        <CardHeader className="p-4 pb-2 grow">
-                            <CardTitle className="text-lg line-clamp-1">{book.title}</CardTitle>
-                            <CardDescription className="text-sm">{book.authors?.join(", ")}</CardDescription>
-                        </CardHeader>
+                        <Link to={`/book/${book.id}`} className="block">
+                            <div className="h-48 bg-slate-200 w-full shrink-0">
+                                {book.cover_url ? (
+                                    <img src={book.cover_url} alt={book.title} className="w-full h-full object-cover" />
+                                ) : (
+                                    <div className="flex items-center justify-center h-full text-slate-400">No Cover</div>
+                                )}
+                            </div>
+                            <CardHeader className="p-4 pb-2 grow hover:text-blue-600 transition-colors">
+                                <CardTitle className="text-lg line-clamp-1">{book.title}</CardTitle>
+                                <CardDescription className="text-sm">{book.authors?.join(", ")}</CardDescription>
+                            </CardHeader>
+                        </Link>
+
                         <CardContent className="p-4 pt-0">
                             <p className="text-xs text-slate-500 mt-2">ISBN: {book.isbn || "N/A"}</p>
                         </CardContent>
